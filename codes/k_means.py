@@ -1,12 +1,15 @@
 import csv
 from sklearn.cluster import KMeans
 import pandas as pd
+from phrasingData import footballData
+from sklearn import preprocessing
+import numpy as np
 
-team_names=['Tottenham','Everton','Liverpool','Sunderland','Arsenal','Southampton','Stoke','Newcastle','Chelsea','Swansea'
-,'West-Ham','West-Brom','Man-City','Aston-Villa','Crystal-Palace','Leicester','Man-United','Norwich','Watford','Bournemouth']
+# team_names=['Tottenham','Everton','Liverpool','Sunderland','Arsenal','Southampton','Stoke','Newcastle','Chelsea','Swansea'
+# ,'West-Ham','West-Brom','Man-City','Aston-Villa','Crystal-Palace','Leicester','Man-United','Norwich','Watford','Bournemouth']
 
-fileName = 'E1.csv'
-fileName2 = 'E2013.csv'
+fileName = 'E2015'
+#fileName2 = 'E2013'
 numbersOfCluster = 5
 
 class clusterTeams():
@@ -21,15 +24,13 @@ class clusterTeams():
 		self.teams = [[[0 for col2 in range(3)] for col in range(5)] for row in range(5)]
 		self.teams_cluster = {}
 		self.scores = []
+		self.fbData = footballData()
+		self.team_names = self.fbData.teamNamesPerSeason[fileName]
 
 	def readFile(self,fileName,tempDataSet):
 
-		with open(fileName,'rb') as file:
-			spamreader = csv.reader(file,delimiter=' ',quotechar = '|')
-			for row in spamreader:
-				t = '-'.join(row)
-				a1 = t.split(',')
-				tempDataSet.append(a1)
+		tempDataSet = self.fbData.dataSets[fileName]
+		return tempDataSet
 
 	def storeGameResultForEachCluster(self,team1,team2,result):
 
@@ -66,7 +67,7 @@ class clusterTeams():
 
 	def extractFeatures(self):
 		count = 0
-		for names in team_names:
+		for names in self.team_names:
 			features = [0,0,0,0,0]
 			for temp in self.data_set:
 				if temp[2] == names:
@@ -81,10 +82,14 @@ class clusterTeams():
 
 		km = KMeans(n_clusters = K)
 
-		km.fit(self.team_features)
+		print self.team_features
+		scale_features = preprocessing.scale(np.array(self.team_features,dtype = float))
+		#preprocessing.normalize(np.array(self.team_features), norm='l2')
+		print scale_features
+		km.fit(scale_features)
 
 		self.centers = km.cluster_centers_
-		self.centers[self.centers<0] = 0 #the minimization function may find very small negative numbers, we threshold them to 0
+		#self.centers[self.centers<0] = 0 #the minimization function may find very small negative numbers, we threshold them to 0
 		self.centers = self.centers.round(2)
 
 		print('\n--------Centers of the four different clusters--------')
@@ -93,21 +98,21 @@ class clusterTeams():
 		for i in range(5):
 		    print(i+1,'\t',self.centers[0,i],'\t',self.centers[1,i],'\t',self.centers[2,i],'\t',self.centers[3,i],'\t',self.centers[4,i])		
 
-		self.prediction = km.predict(self.team_features)
+		self.prediction = km.predict(scale_features)
 
 		print('\n--------Which cluster each customer is in--------')
 		print('{:<15}\t{}'.format('Customer','Cluster'))
 
 		for i in range(len(self.prediction)):
-		    print('{:<15}\t{}'.format(team_names[i],self.prediction[i]+1))
+		    print('{:<15}\t{}'.format(self.team_names[i],self.prediction[i]+1))
 
-		for i in range(len(team_names)):
-			self.teams_cluster[team_names[i]] = self.prediction[i]+1
+		for i in range(len(self.team_names)):
+			self.teams_cluster[self.team_names[i]] = self.prediction[i]+1
 
 	def run(self,fileName,K):
 
 		#read file
-		self.readFile(fileName,self.data_set)
+		self.data_set = self.readFile(fileName,self.data_set)
 
 		#extractFeature
 		self.extractFeatures()
@@ -125,9 +130,12 @@ class clusterTeams():
 
 
 teamCluster = clusterTeams()
+
 teamCluster.run(fileName,numbersOfCluster)
-teamCluster.fillTheEmptyData(fileName2)
+print teamCluster.team_features
+#teamCluster.fillTheEmptyData(fileName2)
 #teamCluster.readFile2(fileName)
+
 print teamCluster.teams_cluster
 print teamCluster.teams
 print teamCluster.scores
